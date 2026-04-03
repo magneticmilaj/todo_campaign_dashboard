@@ -1,26 +1,443 @@
-const CACHE = 'tododoc-v1';
-const ASSETS = [
-  '/todo_campaign_dashboard/',
-  '/todo_campaign_dashboard/index.html',
-  '/todo_campaign_dashboard/manifest.json',
-  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js'
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>토도 캠페인 분석 대시보드</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="토도캠페인">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root {
+    --bg: #e8eaf0;
+    --shadow-light: #ffffff;
+    --shadow-dark: #c5c8d0;
+    --blue: #6c8ef5;
+    --blue2: #a78bfa;
+    --green: #5fc9a0;
+    --orange: #f4845f;
+    --text: #4a4e69;
+    --muted: #9299b2;
+    --neu-out: 6px 6px 14px var(--shadow-dark), -6px -6px 14px var(--shadow-light);
+    --neu-in: inset 4px 4px 10px var(--shadow-dark), inset -4px -4px 10px var(--shadow-light);
+    --neu-sm: 4px 4px 10px var(--shadow-dark), -4px -4px 10px var(--shadow-light);
+    --radius: 20px;
+    --radius-sm: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  .header { background: var(--bg); padding: 0 28px; display: flex; align-items: center; justify-content: space-between; height: 64px; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 12px var(--shadow-dark); }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-badge { background: linear-gradient(135deg, var(--blue), var(--blue2)); color: #fff; font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 8px; letter-spacing: 0.5px; }
+  .logo-title { font-size: 15px; font-weight: 700; color: var(--text); }
+  .status-pill { font-size: 11px; font-weight: 600; padding: 5px 12px; border-radius: 999px; box-shadow: var(--neu-sm); }
+  .status-ok { color: var(--green); }
+  .status-no { color: var(--muted); }
+
+  .main { max-width: 1100px; margin: 0 auto; padding: 28px 20px; }
+  .neu-card { background: var(--bg); border-radius: var(--radius); box-shadow: var(--neu-out); padding: 24px; margin-bottom: 20px; }
+
+  .upload-area { border-radius: var(--radius-sm); box-shadow: var(--neu-in); padding: 32px 20px; cursor: pointer; text-align: center; transition: all 0.2s; }
+  .upload-area:hover { box-shadow: var(--neu-out); }
+  .upload-area input { display: none; }
+  .upload-icon { font-size: 32px; margin-bottom: 10px; }
+  .upload-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; color: var(--text); }
+  .upload-desc { font-size: 12px; color: var(--muted); }
+  .hint-chips { display: flex; justify-content: center; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+  .hint-chip { font-size: 11px; padding: 4px 10px; border-radius: 999px; color: var(--muted); box-shadow: var(--neu-sm); background: var(--bg); }
+  .file-ok { display: none; align-items: center; justify-content: center; gap: 8px; padding: 14px; border-radius: var(--radius-sm); box-shadow: var(--neu-in); font-size: 13px; font-weight: 700; color: var(--green); }
+  .change-btn { font-size: 11px; color: var(--muted); background: var(--bg); border: none; padding: 4px 10px; border-radius: 8px; box-shadow: var(--neu-sm); cursor: pointer; margin-left: 6px; }
+
+  .search-label { font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 12px; letter-spacing: 0.5px; text-transform: uppercase; }
+  .search-row { display: flex; gap: 10px; }
+  .search-input { flex: 1; height: 48px; background: var(--bg); border: none; border-radius: var(--radius-sm); box-shadow: var(--neu-in); padding: 0 18px; font-size: 15px; outline: none; color: var(--text); }
+  .search-input::placeholder { color: var(--muted); }
+  .search-btn { height: 48px; padding: 0 26px; background: linear-gradient(135deg, var(--blue), var(--blue2)); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 4px 4px 10px rgba(108,142,245,0.4), -2px -2px 8px var(--shadow-light); transition: all 0.15s; }
+  .search-btn:active { transform: scale(0.97); }
+  .quick-row { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .quick-label { font-size: 11px; color: var(--muted); font-weight: 600; }
+  .quick-chip { font-size: 12px; padding: 5px 12px; border-radius: 999px; cursor: pointer; color: var(--muted); background: var(--bg); box-shadow: var(--neu-sm); border: none; transition: all 0.15s; font-weight: 600; }
+  .quick-chip:hover { color: var(--blue); box-shadow: var(--neu-in); }
+
+  .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-icon { font-size: 44px; margin-bottom: 14px; }
+  .empty-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+  .empty-desc { font-size: 13px; line-height: 1.7; }
+  .sample-btn { margin-top: 20px; padding: 12px 28px; background: linear-gradient(135deg, var(--blue), var(--blue2)); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 4px 4px 12px rgba(108,142,245,0.4); }
+
+  .result-name { font-size: 24px; font-weight: 800; margin-bottom: 4px; color: var(--text); }
+  .result-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .metric { background: var(--bg); border-radius: var(--radius-sm); box-shadow: var(--neu-out); padding: 16px 18px; }
+  .metric-label { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: 0.3px; margin-bottom: 8px; }
+  .metric-value { font-size: 20px; font-weight: 800; line-height: 1.2; color: var(--text); }
+  .metric-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .pos { color: var(--green); } .neg { color: var(--orange); }
+
+  .next-card { background: linear-gradient(135deg, var(--blue), var(--blue2)); border-radius: var(--radius-sm); padding: 16px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 14px; box-shadow: 6px 6px 16px rgba(108,142,245,0.35), -4px -4px 10px var(--shadow-light); }
+  .next-title { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.8); margin-bottom: 3px; }
+  .next-body { font-size: 14px; color: #fff; font-weight: 700; }
+
+  .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .chart-card { background: var(--bg); border-radius: var(--radius); box-shadow: var(--neu-out); padding: 20px; }
+  .chart-title { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 10px; letter-spacing: 0.3px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+  .subj-card { background: var(--bg); border-radius: var(--radius); box-shadow: var(--neu-out); padding: 20px; margin-bottom: 20px; }
+  .subj-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .subj-row:last-child { margin-bottom: 0; }
+  .subj-label { font-size: 12px; font-weight: 700; width: 56px; color: var(--text); }
+  .subj-track { flex: 1; height: 12px; border-radius: 6px; box-shadow: var(--neu-in); overflow: hidden; }
+  .subj-fill { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
+  .subj-val { font-size: 12px; font-weight: 700; min-width: 72px; text-align: right; }
+  .subj-pct { font-size: 11px; color: var(--muted); min-width: 36px; text-align: right; }
+  .subj-divider { border: none; height: 1px; background: rgba(197,200,208,0.5); margin: 12px 0; }
+
+  .table-card { background: var(--bg); border-radius: var(--radius); box-shadow: var(--neu-out); overflow: hidden; margin-bottom: 24px; }
+  .table-header { padding: 16px 20px; }
+  .table-title { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 0.3px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; color: var(--muted); white-space: nowrap; background: var(--bg); box-shadow: inset 0 -2px 6px var(--shadow-dark); }
+  td { padding: 12px 14px; border-bottom: 1px solid rgba(197,200,208,0.4); white-space: nowrap; color: var(--text); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.4); }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .fw { font-weight: 800; }
+  .badge { display: inline-flex; align-items: center; font-size: 11px; padding: 3px 10px; border-radius: 999px; font-weight: 700; box-shadow: var(--neu-sm); }
+  .badge-up { color: var(--green); }
+  .badge-dn { color: var(--orange); }
+  .badge-new { color: var(--blue); }
+
+  .footer { text-align: center; padding: 28px; font-size: 12px; color: var(--muted); }
+
+  @media(max-width:680px) {
+    .charts-grid { grid-template-columns: 1fr; }
+    .metrics { grid-template-columns: repeat(2,1fr); }
+    .main { padding: 18px 14px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">
+    <span class="logo-badge">TODODOC</span>
+    <span class="logo-title">캠페인 분석 대시보드</span>
+  </div>
+  <span class="status-pill status-no" id="statusPill">데이터 없음</span>
+</header>
+
+<div class="main">
+  <div class="neu-card">
+    <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+      <div class="upload-icon">📊</div>
+      <div class="upload-title">캠페인 시트를 업로드하세요</div>
+      <div class="upload-desc">.xlsx / .xls / .csv — 클릭하거나 드래그해서 올려주세요</div>
+      <div class="hint-chips">
+        <span class="hint-chip">A열 연도</span>
+        <span class="hint-chip">C열 과목</span>
+        <span class="hint-chip">D열 캠페인명</span>
+        <span class="hint-chip">K열 일정</span>
+        <span class="hint-chip">Y~AB열 매출</span>
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+    </div>
+    <div class="file-ok" id="fileOk">
+      <span>✅</span>
+      <span id="fileName"></span>
+      <span id="fileCount"></span>
+      <button class="change-btn" onclick="document.getElementById('fileInput').click()">변경</button>
+    </div>
+  </div>
+
+  <div class="neu-card">
+    <div class="search-label">인플루언서 / 캠페인 검색</div>
+    <div class="search-row">
+      <input type="text" class="search-input" id="searchInput" placeholder="인플루언서명 또는 캠페인명 입력 (예: 스텔라맘)">
+      <button class="search-btn" onclick="doSearch()">검색</button>
+    </div>
+    <div class="quick-row" id="quickRow" style="display:none">
+      <span class="quick-label">빠른 검색</span>
+    </div>
+  </div>
+
+  <div id="resultArea">
+    <div class="empty" id="emptyState">
+      <div class="empty-icon">🔍</div>
+      <div class="empty-title">인플루언서를 검색하면 분석 결과가 나타나요</div>
+      <div class="empty-desc">엑셀을 업로드하거나 샘플 데이터로 먼저 확인해보세요</div>
+      <button class="sample-btn" onclick="loadSample()">샘플 데이터로 보기</button>
+    </div>
+    <div id="dashboard" style="display:none"></div>
+  </div>
+</div>
+<div class="footer">토도원 · 토도영어 · 토도수학 · 토도한글 캠페인 분석 내부용</div>
+
+<script>
+let allData=[], charts={}, lastQuery='';
+
+const SAMPLE=[
+  {year:'2024',subject:'영어,수학',name:'스텔라맘 공구 1회',period:'3.5~3.10',eng:8500000,math:4200000,kor:0,total:12700000},
+  {year:'2024',subject:'영어',name:'스텔라맘 공구 2회',period:'6.1~6.7',eng:10200000,math:0,kor:0,total:10200000},
+  {year:'2024',subject:'영어,수학,한글',name:'스텔라맘 공구 3회',period:'9.10~9.15',eng:9800000,math:5100000,kor:2300000,total:17200000},
+  {year:'2025',subject:'영어,수학',name:'스텔라맘 공구 4회',period:'1.8~1.14',eng:11500000,math:6300000,kor:0,total:17800000},
+  {year:'2025',subject:'영어,한글',name:'스텔라맘 공구 5회',period:'4.20~4.26',eng:13200000,math:0,kor:3800000,total:17000000},
+  {year:'2026',subject:'영어,수학,한글',name:'스텔라맘 공구 6회',period:'1.15~1.21',eng:15600000,math:7200000,kor:4100000,total:26900000},
+  {year:'2024',subject:'수학',name:'베베클래스 1회',period:'4.1~4.5',eng:0,math:6800000,kor:0,total:6800000},
+  {year:'2024',subject:'수학,한글',name:'베베클래스 2회',period:'8.10~8.15',eng:0,math:7500000,kor:3200000,total:10700000},
+  {year:'2025',subject:'영어,수학,한글',name:'베베클래스 3회',period:'2.5~2.10',eng:5200000,math:8100000,kor:3900000,total:17200000},
+  {year:'2024',subject:'한글',name:'맘스터치 라이브 1회',period:'5.15~5.16',eng:0,math:0,kor:4500000,total:4500000},
+  {year:'2025',subject:'영어,한글',name:'맘스터치 라이브 2회',period:'11.20~11.21',eng:8900000,math:0,kor:5200000,total:14100000},
 ];
 
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
-  self.skipWaiting();
-});
+const area=document.getElementById('uploadArea');
+area.addEventListener('dragover',e=>{e.preventDefault();area.style.boxShadow='var(--neu-out)';});
+area.addEventListener('dragleave',()=>area.style.boxShadow='var(--neu-in)');
+area.addEventListener('drop',e=>{e.preventDefault();area.style.boxShadow='var(--neu-in)';handleFile(e.dataTransfer.files[0]);});
+document.getElementById('fileInput').addEventListener('change',e=>handleFile(e.target.files[0]));
 
-self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys =>
-    Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-  ));
-  self.clients.claim();
-});
+function handleFile(file){
+  if(!file)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{
+      const wb=XLSX.read(ev.target.result,{type:'binary'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      parseRows(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}));
+      area.style.display='none';
+      const fo=document.getElementById('fileOk'); fo.style.display='flex';
+      document.getElementById('fileName').textContent=file.name;
+      document.getElementById('fileCount').textContent='· '+allData.length+'개 캠페인';
+      setStatus('ok',allData.length+'개 캠페인');
+      buildQuick(); if(lastQuery)doSearch();
+    }catch(e){alert('파일 오류: '+e.message);}
+  };
+  r.readAsBinaryString(file);
+}
 
-self.addEventListener('fetch', e => {
-  e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
-  );
-});
+function parseRows(rows){
+  allData=[];let cy='';
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i]; if(!r||r.length<4)continue;
+    const a=String(r[0]).trim(); if(/^\d{4}$/.test(a))cy=a;
+    const name=String(r[3]||'').trim(); if(!name)continue;
+    const subject=String(r[2]||'').trim();
+    const isTodoone=subject.includes('토도원');
+    const eng=pn(r[24]),math=pn(r[25]),kor=pn(r[26]);
+    const rawTotal=pn(r[27]); const total=rawTotal>0?rawTotal:(eng+math+kor);
+    if(!total&&!eng&&!math&&!kor)continue;
+    allData.push({year:cy,subject,name,period:String(r[10]||'').trim(),eng,math,kor,total,isTodoone});
+  }
+}
+
+function pn(v){
+  if(v===null||v===undefined||v==='')return 0;
+  if(typeof v==='number')return Math.round(v);
+  const s=String(v).replace(/[,원\s]/g,'').replace(/[^0-9.\-]/g,'');
+  return Math.round(parseFloat(s)||0);
+}
+
+function loadSample(){
+  allData=SAMPLE; setStatus('ok',allData.length+'개 (샘플)');
+  buildQuick(); document.getElementById('searchInput').value='스텔라맘'; doSearch();
+}
+
+function setStatus(t,txt){
+  const p=document.getElementById('statusPill');
+  p.textContent=txt; p.className='status-pill '+(t==='ok'?'status-ok':'status-no');
+}
+
+function buildQuick(){
+  const names=[...new Set(allData.map(d=>d.name.replace(/\s*(공구|라이브|TV).*$/,'').trim()))].slice(0,8);
+  const row=document.getElementById('quickRow'); row.style.display='flex';
+  while(row.children.length>1)row.removeChild(row.lastChild);
+  names.forEach(n=>{
+    const c=document.createElement('button'); c.className='quick-chip'; c.textContent=n;
+    c.onclick=()=>{document.getElementById('searchInput').value=n;doSearch();};
+    row.appendChild(c);
+  });
+}
+
+function doSearch(){
+  const q=document.getElementById('searchInput').value.trim(); if(!q)return;
+  lastQuery=q;
+  const data=allData.length?allData:SAMPLE;
+  // 회차 정렬: 데이터 원본 순서 유지 (이미 시트에서 1회=가장 오래된 순)
+  // 회차 번호가 없으면 데이터 인덱스 순서 사용
+  const raw=data.filter(d=>d.name.includes(q));
+  const matches=raw.sort((a,b)=>{
+    const getNum=n=>{const m=n.match(/(\d+)\s*회/);return m?parseInt(m[1]):9999;};
+    const nd=getNum(a.name)-getNum(b.name);
+    if(nd!==0)return nd;
+    return (parseInt(a.year)||0)-(parseInt(b.year)||0);
+  });
+  document.getElementById('emptyState').style.display='none';
+  const db=document.getElementById('dashboard'); db.style.display='block';
+  if(!matches.length){db.innerHTML=`<div class="empty"><div class="empty-icon">😶</div><div class="empty-title">"${q}" 검색 결과 없음</div></div>`;return;}
+  renderDashboard(q,matches);
+}
+
+function fmtM(n){return Math.round(n/10000).toLocaleString('ko-KR')+'만원';}
+
+function parseDate(period,year){
+  if(!period||!year)return null;
+  const m=period.match(/(\d+)[.\-](\d+)/); if(!m)return null;
+  return new Date(parseInt(year),parseInt(m[1])-1,parseInt(m[2]));
+}
+
+function renderDashboard(q,matches){
+  destroyCharts();
+  const cnt=matches.length,last=matches[cnt-1],prev=cnt>1?matches[cnt-2]:null;
+  const totalRev=matches.reduce((s,d)=>s+d.total,0),avgRev=totalRev/cnt;
+  const engT=matches.reduce((s,d)=>s+d.eng,0),mathT=matches.reduce((s,d)=>s+d.math,0),korT=matches.reduce((s,d)=>s+d.kor,0);
+  // 과목별 바 — 토도원 포함 여부 체크
+  const hasTodoone=matches.some(d=>d.isTodoone);
+  const todooneTot=matches.filter(d=>d.isTodoone).reduce((s,d)=>s+d.total,0);
+  const maxS=Math.max(engT,mathT,korT,todooneTot)||1,sumS=(engT+mathT+korT+todooneTot)||1;
+
+  let growthStr='-',growthCls='';
+  if(prev&&prev.total>0){const pct=((last.total-prev.total)/prev.total*100).toFixed(1);growthStr=(pct>0?'+':'')+pct+'%';growthCls=parseFloat(pct)>0?'pos':'neg';}
+
+  let avgCycle='-',nextRec='';
+  const dates=matches.map(d=>parseDate(d.period,d.year)).filter(Boolean);
+  if(dates.length>=2){
+    const gaps=[];for(let i=1;i<dates.length;i++)gaps.push(Math.round(Math.abs(dates[i]-dates[i-1])/864e5));
+    const avg=gaps.reduce((a,b)=>a+b,0)/gaps.length;
+    avgCycle=Math.round(avg)+'일 (약 '+Math.round(avg/30)+'개월)';
+    const nd=new Date(dates[dates.length-1].getTime()+avg*864e5);
+    nextRec=(nd.getMonth()+1)+'월 '+nd.getDate()+'일 전후 권장';
+  }
+
+  // 테이블 행 — 토도원 여부에 따라 표시 다르게
+  const tableRows=matches.map((d,i)=>{
+    const p=i>0?matches[i-1]:null;
+    let badge='<span class="badge badge-new">첫회</span>';
+    if(p&&p.total>0){const pct=((d.total-p.total)/p.total*100).toFixed(1);badge=parseFloat(pct)>=0?`<span class="badge badge-up">▲ ${Math.abs(pct)}%</span>`:`<span class="badge badge-dn">▼ ${Math.abs(pct)}%</span>`;}
+
+    let engCell, mathCell, korCell;
+    if(d.isTodoone){
+      // 토도원: 전체 칸을 합쳐서 표시
+      engCell=`<td class="num" colspan="3" style="text-align:center"><span style="background:linear-gradient(135deg,#6c8ef5,#a78bfa);color:#fff;font-weight:700;padding:3px 10px;border-radius:6px;font-size:11px">토도원 ${fmtM(d.total)}</span></td>`;
+      mathCell=null; korCell=null;
+    } else {
+      engCell=`<td class="num">${d.eng>0?`<span style="color:var(--blue);font-weight:700">${fmtM(d.eng)}</span>`:'<span style="color:#c5c8d0">-</span>'}</td>`;
+      mathCell=`<td class="num">${d.math>0?`<span style="color:var(--green);font-weight:700">${fmtM(d.math)}</span>`:'<span style="color:#c5c8d0">-</span>'}</td>`;
+      korCell=`<td class="num">${d.kor>0?`<span style="color:var(--orange);font-weight:700">${fmtM(d.kor)}</span>`:'<span style="color:#c5c8d0">-</span>'}</td>`;
+    }
+
+    const roundNum = i+1;
+    return `<tr>
+      <td><span style="font-size:11px;color:var(--muted)">${d.year}</span><br>${d.period||'-'}</td>
+      <td><span style="font-size:11px;color:var(--muted);margin-right:4px">${roundNum}회</span>${d.name}</td>
+      <td>${d.subject||'-'}</td>
+      ${d.isTodoone ? engCell : engCell+mathCell+korCell}
+      <td class="num fw">${fmtM(d.total)}</td>
+      <td class="num">${badge}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('dashboard').innerHTML=`
+    <div class="result-name">${q}</div>
+    <div class="result-sub">총 ${cnt}회 진행 · 최근: ${last.year}년 ${last.period||''}</div>
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">총 진행 횟수</div><div class="metric-value">${cnt}회</div></div>
+      <div class="metric"><div class="metric-label">누적 거래액</div><div class="metric-value" style="font-size:17px">${fmtM(totalRev)}</div></div>
+      <div class="metric"><div class="metric-label">회당 평균 매출</div><div class="metric-value" style="font-size:17px">${fmtM(avgRev)}</div></div>
+      <div class="metric"><div class="metric-label">전회 대비 성장</div><div class="metric-value ${growthCls}" style="font-size:20px">${growthStr}</div><div class="metric-sub">${last.period||''} 기준</div></div>
+      <div class="metric"><div class="metric-label">평균 진행 주기</div><div class="metric-value" style="font-size:14px;margin-top:4px">${avgCycle}</div></div>
+    </div>
+    ${nextRec?`<div class="next-card"><span style="font-size:22px">📅</span><div><div class="next-title">다음 공구 추천 일정</div><div class="next-body">${nextRec} — ${cnt}회 평균 주기 기반 예측</div></div></div>`:''}
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">회차별 매출 추이 (과목별 누적)</div>
+        <div class="legend">
+          <span class="legend-item"><span class="legend-dot" style="background:#6c8ef5"></span>토도영어</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#5fc9a0"></span>토도수학</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#f4845f"></span>토도한글</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#9299b2;border-radius:50%"></span>전체합계</span>
+        </div>
+        <div style="position:relative;height:220px"><canvas id="stackChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">과목별 매출 비중</div>
+        <div class="legend">
+          <span class="legend-item"><span class="legend-dot" style="background:#6c8ef5"></span>영어</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#5fc9a0"></span>수학</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#f4845f"></span>한글</span>
+        </div>
+        <div style="position:relative;height:220px"><canvas id="donutChart"></canvas></div>
+      </div>
+    </div>
+    <div class="subj-card">
+      <div class="chart-title" style="margin-bottom:16px">과목별 누적 매출 합계</div>
+      <div class="subj-row"><span class="subj-label" style="color:var(--blue)">토도영어</span><div class="subj-track"><div class="subj-fill" style="width:${Math.round(engT/maxS*100)}%;background:linear-gradient(90deg,#6c8ef5,#a78bfa)"></div></div><span class="subj-val" style="color:var(--blue)">${fmtM(engT)}</span><span class="subj-pct">${Math.round(engT/sumS*100)}%</span></div>
+      <div class="subj-row"><span class="subj-label" style="color:var(--green)">토도수학</span><div class="subj-track"><div class="subj-fill" style="width:${Math.round(mathT/maxS*100)}%;background:linear-gradient(90deg,#5fc9a0,#38b2ac)"></div></div><span class="subj-val" style="color:var(--green)">${fmtM(mathT)}</span><span class="subj-pct">${Math.round(mathT/sumS*100)}%</span></div>
+      <div class="subj-row"><span class="subj-label" style="color:var(--orange)">토도한글</span><div class="subj-track"><div class="subj-fill" style="width:${Math.round(korT/maxS*100)}%;background:linear-gradient(90deg,#f4845f,#f6a06e)"></div></div><span class="subj-val" style="color:var(--orange)">${fmtM(korT)}</span><span class="subj-pct">${Math.round(korT/sumS*100)}%</span></div>
+      ${hasTodoone?`<div class="subj-row"><span class="subj-label" style="background:linear-gradient(135deg,#6c8ef5,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:800">토도원</span><div class="subj-track"><div class="subj-fill" style="width:${Math.round(todooneTot/maxS*100)}%;background:linear-gradient(90deg,#6c8ef5,#a78bfa)"></div></div><span class="subj-val" style="color:var(--blue)">${fmtM(todooneTot)}</span><span class="subj-pct">${Math.round(todooneTot/sumS*100)}%</span></div>`:''}
+      <hr class="subj-divider">
+      <div class="subj-row"><span class="subj-label" style="font-weight:800">전체합계</span><div class="subj-track"><div class="subj-fill" style="width:100%;background:linear-gradient(90deg,#9299b2,#b0b5c8)"></div></div><span class="subj-val fw">${fmtM(totalRev)}</span><span class="subj-pct">100%</span></div>
+    </div>
+    <div class="table-card">
+      <div class="table-header"><span class="table-title">회차별 상세 이력 (${cnt}회)</span></div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>일정</th><th>캠페인명</th><th>과목</th>
+          <th class="num" style="color:#6c8ef5">영어</th>
+          <th class="num" style="color:#5fc9a0">수학</th>
+          <th class="num" style="color:#f4845f">한글</th>
+          <th class="num">전체 매출</th><th class="num">성장률</th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table></div>
+    </div>`;
+
+  const sc=document.getElementById('stackChart');
+  const sctx=sc.getContext('2d');
+  function makeGrad(ctx,c1,c2){const g=ctx.createLinearGradient(0,0,0,300);g.addColorStop(0,c1);g.addColorStop(1,c2);return g;}
+  const gEng=makeGrad(sctx,'rgba(108,142,245,0.95)','rgba(108,142,245,0.6)');
+  const gMath=makeGrad(sctx,'rgba(95,201,160,0.95)','rgba(95,201,160,0.6)');
+  const gKor=makeGrad(sctx,'rgba(244,132,95,0.95)','rgba(244,132,95,0.6)');
+  const lineArea=sctx.createLinearGradient(0,0,0,280);
+  lineArea.addColorStop(0,'rgba(146,153,178,0.18)');lineArea.addColorStop(1,'rgba(146,153,178,0)');
+
+  const labels=matches.map((_,i)=>(i+1)+'회');
+  charts['stack']=new Chart(sc,{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'영어',data:matches.map(d=>Math.round(d.eng/10000)),backgroundColor:gEng,stack:'s',borderRadius:8,borderSkipped:false},
+      {label:'수학',data:matches.map(d=>Math.round(d.math/10000)),backgroundColor:gMath,stack:'s',borderRadius:8,borderSkipped:false},
+      {label:'한글',data:matches.map(d=>Math.round(d.kor/10000)),backgroundColor:gKor,stack:'s',borderRadius:8,borderSkipped:false},
+      {label:'전체',data:matches.map(d=>Math.round(d.total/10000)),type:'line',borderColor:'rgba(146,153,178,0.9)',backgroundColor:lineArea,pointBackgroundColor:'#fff',pointBorderColor:'#9299b2',pointBorderWidth:2,pointRadius:5,pointHoverRadius:7,tension:0.45,borderWidth:2.5,fill:true,stack:undefined}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(255,255,255,0.96)',titleColor:'#4a4e69',bodyColor:'#9299b2',borderColor:'rgba(197,200,208,0.6)',borderWidth:1,padding:12,cornerRadius:12,titleFont:{weight:'700',size:13},callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()}만원`}}},scales:{x:{grid:{display:false},border:{display:false},ticks:{color:'#9299b2',font:{weight:'600',size:12},autoSkip:false}},y:{grid:{color:'rgba(197,200,208,0.25)',drawBorder:false},border:{display:false,dash:[4,4]},ticks:{color:'#9299b2',font:{size:11},callback:v=>v+'만'}}}}
+  });
+
+  charts['donut']=new Chart(document.getElementById('donutChart'),{
+    type:'doughnut',
+    data:{labels:['토도영어','토도수학','토도한글'],datasets:[{data:[Math.round(engT/10000),Math.round(mathT/10000),Math.round(korT/10000)],backgroundColor:['#6c8ef5','#5fc9a0','#f4845f'],hoverBackgroundColor:['#8aaaf7','#7dd6b8','#f7a080'],borderWidth:5,borderColor:'#e8eaf0',hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(255,255,255,0.96)',titleColor:'#4a4e69',bodyColor:'#9299b2',borderColor:'rgba(197,200,208,0.6)',borderWidth:1,padding:12,cornerRadius:12,callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed.toLocaleString()}만원`}}},cutout:'68%',animation:{animateRotate:true,duration:800,easing:'easeInOutQuart'}}
+  });
+}
+
+function destroyCharts(){Object.values(charts).forEach(c=>{try{c.destroy();}catch(e){}});charts={};}
+document.getElementById('searchInput').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
+
+// PWA Service Worker 등록
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('/todo_campaign_dashboard/sw.js')
+      .catch(e=>console.log('SW 등록 실패:', e));
+  });
+}
+</script>
+</body>
+</html>
